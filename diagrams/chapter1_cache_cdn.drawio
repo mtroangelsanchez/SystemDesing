@@ -1,0 +1,65 @@
+<mxfile host="app.diagrams.net" modified="2024-01-15T00:00:00.000Z" agent="Kiro" version="22.1.0">
+  <diagram name="Cache + CDN Architecture" id="cache-cdn">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <!-- Title -->
+        <mxCell id="t1" value="&lt;b&gt;Figure 1-11: CDN + Cache Architecture&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="320" height="30" as="geometry" />
+        </mxCell>
+        <!-- Users -->
+        <mxCell id="u1" value="Users" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="250" width="60" height="60" as="geometry" />
+        </mxCell>
+        <!-- CDN -->
+        <mxCell id="cdn" value="&lt;b&gt;CDN&lt;/b&gt;&#xa;Static Assets&#xa;(JS, CSS, Images, Videos)" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="200" y="80" width="220" height="100" as="geometry" />
+        </mxCell>
+        <!-- Load Balancer -->
+        <mxCell id="lb" value="&lt;b&gt;Load Balancer&lt;/b&gt;" style="shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="280" y="260" width="140" height="45" as="geometry" />
+        </mxCell>
+        <!-- Web Servers -->
+        <mxCell id="ws1" value="Web Server 1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="500" y="220" width="100" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="ws2" value="Web Server 2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="500" y="280" width="100" height="35" as="geometry" />
+        </mxCell>
+        <!-- Cache -->
+        <mxCell id="cache" value="&lt;b&gt;Cache&lt;/b&gt;&#xa;(Redis Cluster)" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="680" y="180" width="140" height="60" as="geometry" />
+        </mxCell>
+        <!-- Master DB -->
+        <mxCell id="mdb" value="&lt;b&gt;Master&lt;/b&gt;&#xa;(Write)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="680" y="310" width="100" height="60" as="geometry" />
+        </mxCell>
+        <!-- Slave DBs -->
+        <mxCell id="sdb1" value="Slave 1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="680" y="420" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sdb2" value="Slave 2" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="790" y="420" width="80" height="50" as="geometry" />
+        </mxCell>
+        <!-- Annotations -->
+        <mxCell id="note1" value="1. Static assets fetched&#xa;from CDN (not web servers)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="460" y="80" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="note2" value="2. Database load lightened&#xa;by caching data" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="850" y="250" width="150" height="50" as="geometry" />
+        </mxCell>
+        <!-- Connections -->
+        <mxCell id="e1" value="static" edge="1" source="u1" target="cdn" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" value="dynamic" edge="1" source="u1" target="lb" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" edge="1" source="lb" target="ws1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" edge="1" source="lb" target="ws2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" value="check cache" edge="1" source="ws1" target="cache" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" value="write" edge="1" source="ws2" target="mdb" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e7" value="read" style="dashed=1;" edge="1" source="ws1" target="sdb1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e8" style="dashed=1;" edge="1" source="mdb" target="sdb1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e9" style="dashed=1;" edge="1" source="mdb" target="sdb2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
