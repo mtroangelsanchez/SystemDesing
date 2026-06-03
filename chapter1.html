@@ -38,6 +38,9 @@
                 <li><a href="#cache" class="nav-link">Caché</a></li>
                 <li><a href="#cdn" class="nav-link">CDN</a></li>
                 <li><a href="#scaling" class="nav-link">Escalamiento</a></li>
+                <li><a href="#cloud-practices" class="nav-link">Cloud</a></li>
+                <li><a href="#aws-terraform" class="nav-link">AWS + Terraform</a></li>
+                <li><a href="#docker-local" class="nav-link">Docker</a></li>
             </ul>
         </div>
     </nav>
@@ -878,6 +881,794 @@
                 </div>
             </div>
 
+            <!-- Arquitecturas AWS con Terraform -->
+            <div class="content-block" id="aws-terraform">
+                <h2><span class="icon orange"><i class="fab fa-aws"></i></span> Arquitecturas AWS con Terraform</h2>
+                <p>
+                    A continuación se presentan las configuraciones de Terraform para implementar cada capa de la arquitectura 
+                    descrita en este ejemplo. Cada bloque es incremental — construimos desde la red base hasta la aplicación completa.
+                </p>
+
+                <h3>1. Red Base — VPC, Subnets y Security Groups</h3>
+                <div class="info-card">
+                    <h4>🌐 Fundamento de Red</h4>
+                    <p>Toda arquitectura escalable comienza con una VPC bien diseñada. Usamos subnets públicas para el balanceador 
+                    y subnets privadas para servidores y bases de datos. Esto garantiza que los componentes internos nunca sean 
+                    accesibles directamente desde internet.</p>
+                </div>
+                <div class="code-block">
+<span class="comment"># provider.tf — Configuración del proveedor AWS</span>
+terraform {
+  required_providers {
+    aws = {
+      source  = <span class="string">"hashicorp/aws"</span>
+      version = <span class="string">"~&gt; 5.0"</span>
+    }
+  }
+}
+
+provider <span class="string">"aws"</span> {
+  region = <span class="string">"us-east-1"</span>
+}
+</div>
+
+                <div class="code-block">
+<span class="comment"># vpc.tf — VPC con subnets públicas y privadas</span>
+resource <span class="string">"aws_vpc"</span> <span class="string">"main"</span> {
+  cidr_block           = <span class="string">"10.0.0.0/16"</span>
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+  tags = { Name = <span class="string">"system-design-vpc"</span> }
+}
+
+resource <span class="string">"aws_subnet"</span> <span class="string">"public_a"</span> {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = <span class="string">"10.0.1.0/24"</span>
+  availability_zone = <span class="string">"us-east-1a"</span>
+  map_public_ip_on_launch = true
+  tags = { Name = <span class="string">"public-subnet-a"</span> }
+}
+
+resource <span class="string">"aws_subnet"</span> <span class="string">"public_b"</span> {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = <span class="string">"10.0.2.0/24"</span>
+  availability_zone = <span class="string">"us-east-1b"</span>
+  map_public_ip_on_launch = true
+  tags = { Name = <span class="string">"public-subnet-b"</span> }
+}
+
+resource <span class="string">"aws_subnet"</span> <span class="string">"private_a"</span> {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = <span class="string">"10.0.10.0/24"</span>
+  availability_zone = <span class="string">"us-east-1a"</span>
+  tags = { Name = <span class="string">"private-subnet-a"</span> }
+}
+
+resource <span class="string">"aws_subnet"</span> <span class="string">"private_b"</span> {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = <span class="string">"10.0.11.0/24"</span>
+  availability_zone = <span class="string">"us-east-1b"</span>
+  tags = { Name = <span class="string">"private-subnet-b"</span> }
+}
+</div>
+
+                <h3>2. Balanceador de Carga — Application Load Balancer</h3>
+                <div class="info-card">
+                    <h4>⚖️ ALB con Health Checks</h4>
+                    <p>El ALB distribuye tráfico entre múltiples instancias en diferentes zonas de disponibilidad. 
+                    Los health checks verifican que cada instancia responda correctamente antes de enviarle tráfico.</p>
+                </div>
+                <div class="code-block">
+<span class="comment"># alb.tf — Application Load Balancer</span>
+resource <span class="string">"aws_lb"</span> <span class="string">"app"</span> {
+  name               = <span class="string">"app-alb"</span>
+  internal           = false
+  load_balancer_type = <span class="string">"application"</span>
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+
+  tags = { Name = <span class="string">"app-load-balancer"</span> }
+}
+
+resource <span class="string">"aws_lb_target_group"</span> <span class="string">"app"</span> {
+  name     = <span class="string">"app-tg"</span>
+  port     = 80
+  protocol = <span class="string">"HTTP"</span>
+  vpc_id   = aws_vpc.main.id
+
+  health_check {
+    path                = <span class="string">"/health"</span>
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+  }
+}
+
+resource <span class="string">"aws_lb_listener"</span> <span class="string">"http"</span> {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 80
+  protocol          = <span class="string">"HTTP"</span>
+
+  default_action {
+    type             = <span class="string">"forward"</span>
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+}
+</div>
+
+                <h3>3. Auto Scaling — Servidores Web Stateless</h3>
+                <div class="info-card">
+                    <h4>📈 Escalamiento Automático</h4>
+                    <p>El Auto Scaling Group mantiene entre 2 y 10 instancias según la carga de CPU. 
+                    Las instancias son stateless — toda la sesión se almacena en ElastiCache Redis.</p>
+                </div>
+                <div class="code-block">
+<span class="comment"># asg.tf — Auto Scaling Group con Launch Template</span>
+resource <span class="string">"aws_launch_template"</span> <span class="string">"app"</span> {
+  name_prefix   = <span class="string">"app-server-"</span>
+  image_id      = <span class="string">"ami-0c02fb55956c7d316"</span>  <span class="comment"># Amazon Linux 2023</span>
+  instance_type = <span class="string">"t3.medium"</span>
+
+  network_interfaces {
+    security_groups             = [aws_security_group.app_sg.id]
+    associate_public_ip_address = false
+  }
+
+  user_data = base64encode(&lt;&lt;-EOF
+    #!/bin/bash
+    yum update -y
+    yum install -y docker
+    systemctl start docker
+    docker pull myapp:latest
+    docker run -d -p 80:8080 myapp:latest
+  EOF
+  )
+
+  tag_specifications {
+    resource_type = <span class="string">"instance"</span>
+    tags = { Name = <span class="string">"app-server"</span> }
+  }
+}
+
+resource <span class="string">"aws_autoscaling_group"</span> <span class="string">"app"</span> {
+  name                = <span class="string">"app-asg"</span>
+  desired_capacity    = 2
+  min_size            = 2
+  max_size            = 10
+  target_group_arns   = [aws_lb_target_group.app.arn]
+  vpc_zone_identifier = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+
+  launch_template {
+    id      = aws_launch_template.app.id
+    version = <span class="string">"$Latest"</span>
+  }
+}
+
+<span class="comment"># Política de escalamiento por CPU</span>
+resource <span class="string">"aws_autoscaling_policy"</span> <span class="string">"cpu"</span> {
+  name                   = <span class="string">"cpu-target-tracking"</span>
+  autoscaling_group_name = aws_autoscaling_group.app.name
+  policy_type            = <span class="string">"TargetTrackingScaling"</span>
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = <span class="string">"ASGAverageCPUUtilization"</span>
+    }
+    target_value = 60.0
+  }
+}
+</div>
+
+                <h3>4. Base de Datos — Aurora con Réplicas de Lectura</h3>
+                <div class="info-card purple">
+                    <h4>🗄️ Aurora MySQL Multi-AZ</h4>
+                    <p>Aurora proporciona replicación automática con hasta 15 réplicas de lectura, failover automático 
+                    en menos de 30 segundos y almacenamiento que escala automáticamente hasta 128 TB.</p>
+                </div>
+                <div class="code-block">
+<span class="comment"># aurora.tf — Cluster Aurora con réplicas de lectura</span>
+resource <span class="string">"aws_rds_cluster"</span> <span class="string">"main"</span> {
+  cluster_identifier = <span class="string">"app-aurora-cluster"</span>
+  engine             = <span class="string">"aurora-mysql"</span>
+  engine_version     = <span class="string">"8.0.mysql_aurora.3.04.0"</span>
+  database_name      = <span class="string">"appdb"</span>
+  master_username    = <span class="string">"admin"</span>
+  master_password    = var.db_password  <span class="comment"># Usar AWS Secrets Manager</span>
+
+  vpc_security_group_ids = [aws_security_group.db_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+
+  backup_retention_period = 7
+  preferred_backup_window = <span class="string">"03:00-04:00"</span>
+  skip_final_snapshot     = false
+}
+
+<span class="comment"># Instancia Writer (Master)</span>
+resource <span class="string">"aws_rds_cluster_instance"</span> <span class="string">"writer"</span> {
+  identifier         = <span class="string">"app-aurora-writer"</span>
+  cluster_identifier = aws_rds_cluster.main.id
+  instance_class     = <span class="string">"db.r6g.large"</span>
+  engine             = aws_rds_cluster.main.engine
+}
+
+<span class="comment"># Instancias Reader (Slaves) — 2 réplicas</span>
+resource <span class="string">"aws_rds_cluster_instance"</span> <span class="string">"readers"</span> {
+  count              = 2
+  identifier         = <span class="string">"app-aurora-reader-${count.index}"</span>
+  cluster_identifier = aws_rds_cluster.main.id
+  instance_class     = <span class="string">"db.r6g.large"</span>
+  engine             = aws_rds_cluster.main.engine
+}
+</div>
+
+                <h3>5. Caché — ElastiCache Redis Cluster</h3>
+                <div class="code-block">
+<span class="comment"># elasticache.tf — Redis con réplicas Multi-AZ</span>
+resource <span class="string">"aws_elasticache_replication_group"</span> <span class="string">"redis"</span> {
+  replication_group_id = <span class="string">"app-redis"</span>
+  description          = <span class="string">"Redis cache para sesiones y datos frecuentes"</span>
+  node_type            = <span class="string">"cache.r6g.large"</span>
+  num_cache_clusters   = 3  <span class="comment"># 1 primario + 2 réplicas</span>
+  engine_version       = <span class="string">"7.0"</span>
+  port                 = 6379
+
+  automatic_failover_enabled = true
+  multi_az_enabled           = true
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+
+  subnet_group_name  = aws_elasticache_subnet_group.main.name
+  security_group_ids = [aws_security_group.redis_sg.id]
+}
+</div>
+
+                <h3>6. CDN y Almacenamiento Estático — CloudFront + S3</h3>
+                <div class="code-block">
+<span class="comment"># cdn.tf — CloudFront + S3 para assets estáticos</span>
+resource <span class="string">"aws_s3_bucket"</span> <span class="string">"static"</span> {
+  bucket = <span class="string">"app-static-assets-${random_id.suffix.hex}"</span>
+  tags   = { Name = <span class="string">"static-assets"</span> }
+}
+
+resource <span class="string">"aws_s3_bucket_versioning"</span> <span class="string">"static"</span> {
+  bucket = aws_s3_bucket.static.id
+  versioning_configuration { status = <span class="string">"Enabled"</span> }
+}
+
+resource <span class="string">"aws_cloudfront_distribution"</span> <span class="string">"cdn"</span> {
+  origin {
+    domain_name = aws_s3_bucket.static.bucket_regional_domain_name
+    origin_id   = <span class="string">"s3-static"</span>
+    s3_origin_config {
+      origin_access_identity = aws_cloudfront_origin_access_identity.oai.cloudfront_access_identity_path
+    }
+  }
+
+  enabled             = true
+  default_root_object = <span class="string">"index.html"</span>
+
+  default_cache_behavior {
+    allowed_methods  = [<span class="string">"GET"</span>, <span class="string">"HEAD"</span>]
+    cached_methods   = [<span class="string">"GET"</span>, <span class="string">"HEAD"</span>]
+    target_origin_id = <span class="string">"s3-static"</span>
+    viewer_protocol_policy = <span class="string">"redirect-to-https"</span>
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = <span class="string">"none"</span> }
+    }
+
+    min_ttl     = 0
+    default_ttl = 86400   <span class="comment"># 24 horas</span>
+    max_ttl     = 604800  <span class="comment"># 7 días</span>
+  }
+
+  restrictions {
+    geo_restriction { restriction_type = <span class="string">"none"</span> }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}
+</div>
+
+                <h3>7. Cola de Mensajes — SQS + Lambda Workers</h3>
+                <div class="code-block">
+<span class="comment"># sqs.tf — Cola SQS con Dead Letter Queue</span>
+resource <span class="string">"aws_sqs_queue"</span> <span class="string">"tasks"</span> {
+  name                       = <span class="string">"app-task-queue"</span>
+  visibility_timeout_seconds = 300
+  message_retention_seconds  = 1209600  <span class="comment"># 14 días</span>
+  receive_wait_time_seconds  = 20       <span class="comment"># Long polling</span>
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.dlq.arn
+    maxReceiveCount     = 3
+  })
+}
+
+resource <span class="string">"aws_sqs_queue"</span> <span class="string">"dlq"</span> {
+  name = <span class="string">"app-task-queue-dlq"</span>
+}
+
+<span class="comment"># Lambda como worker/consumer</span>
+resource <span class="string">"aws_lambda_function"</span> <span class="string">"worker"</span> {
+  function_name = <span class="string">"task-worker"</span>
+  runtime       = <span class="string">"python3.12"</span>
+  handler       = <span class="string">"handler.process"</span>
+  filename      = <span class="string">"worker.zip"</span>
+  role          = aws_iam_role.lambda_role.arn
+  timeout       = 300
+  memory_size   = 512
+}
+
+resource <span class="string">"aws_lambda_event_source_mapping"</span> <span class="string">"sqs_trigger"</span> {
+  event_source_arn = aws_sqs_queue.tasks.arn
+  function_name    = aws_lambda_function.worker.arn
+  batch_size       = 10
+}
+</div>
+
+                <div class="info-card">
+                    <h4>📋 Comandos para Desplegar</h4>
+                    <p>
+                        <code>terraform init</code> → Inicializar proveedores<br>
+                        <code>terraform plan</code> → Revisar cambios antes de aplicar<br>
+                        <code>terraform apply -auto-approve</code> → Crear la infraestructura<br>
+                        <code>terraform destroy</code> → Eliminar todo (¡cuidado en producción!)
+                    </p>
+                </div>
+            </div>
+
+            <!-- Docker en Local -->
+            <div class="content-block" id="docker-local">
+                <h2><span class="icon purple"><i class="fab fa-docker"></i></span> Ejemplo Completo con Docker en Local</h2>
+                <p>
+                    Puedes replicar toda la arquitectura de este ejemplo en tu máquina local usando Docker Compose. 
+                    Esto incluye: servidor web con Nginx como balanceador, aplicación en Node.js, base de datos PostgreSQL 
+                    con réplica de lectura, Redis como caché y RabbitMQ como cola de mensajes.
+                </p>
+
+                <div class="diagram-container">
+                    <span class="diagram-label">Arquitectura Docker Local</span>
+                    <div class="svg-diagram">
+                        <svg viewBox="0 0 750 300" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Docker network box -->
+                            <rect x="30" y="20" width="690" height="260" rx="14" fill="rgba(77,168,218,0.05)" stroke="#4da8da" stroke-width="1" stroke-dasharray="6,3"/>
+                            <text x="375" y="45" text-anchor="middle" fill="#4da8da" font-size="10" font-weight="600">🐳 Docker Network: app-network</text>
+                            <!-- Nginx LB -->
+                            <rect x="60" y="120" width="90" height="55" rx="8" fill="rgba(32,201,151,0.15)" stroke="#20c997" stroke-width="1.5"/>
+                            <text x="105" y="145" text-anchor="middle" fill="#20c997" font-size="9" font-weight="700">Nginx</text>
+                            <text x="105" y="162" text-anchor="middle" fill="#8ba4bc" font-size="7">:80 → apps</text>
+                            <!-- App 1 -->
+                            <rect x="200" y="80" width="100" height="45" rx="6" fill="rgba(77,168,218,0.1)" stroke="#4da8da" stroke-width="1"/>
+                            <text x="250" y="102" text-anchor="middle" fill="#4da8da" font-size="8" font-weight="600">App Node.js 1</text>
+                            <text x="250" y="116" text-anchor="middle" fill="#8ba4bc" font-size="7">:3001</text>
+                            <!-- App 2 -->
+                            <rect x="200" y="145" width="100" height="45" rx="6" fill="rgba(77,168,218,0.1)" stroke="#4da8da" stroke-width="1"/>
+                            <text x="250" y="167" text-anchor="middle" fill="#4da8da" font-size="8" font-weight="600">App Node.js 2</text>
+                            <text x="250" y="181" text-anchor="middle" fill="#8ba4bc" font-size="7">:3002</text>
+                            <!-- Redis -->
+                            <rect x="360" y="70" width="90" height="45" rx="6" fill="rgba(108,99,255,0.1)" stroke="#6c63ff" stroke-width="1"/>
+                            <text x="405" y="92" text-anchor="middle" fill="#6c63ff" font-size="8" font-weight="600">Redis</text>
+                            <text x="405" y="106" text-anchor="middle" fill="#8ba4bc" font-size="7">:6379 (Caché)</text>
+                            <!-- PostgreSQL Master -->
+                            <rect x="500" y="70" width="100" height="45" rx="6" fill="rgba(0,123,255,0.1)" stroke="#007bff" stroke-width="1.5"/>
+                            <text x="550" y="90" text-anchor="middle" fill="#007bff" font-size="8" font-weight="600">PostgreSQL</text>
+                            <text x="550" y="106" text-anchor="middle" fill="#8ba4bc" font-size="7">:5432 (Master)</text>
+                            <!-- PostgreSQL Replica -->
+                            <rect x="500" y="135" width="100" height="45" rx="6" fill="rgba(0,123,255,0.08)" stroke="#007bff" stroke-width="1"/>
+                            <text x="550" y="155" text-anchor="middle" fill="#007bff" font-size="8" font-weight="600">PG Réplica</text>
+                            <text x="550" y="171" text-anchor="middle" fill="#8ba4bc" font-size="7">:5433 (Read)</text>
+                            <!-- RabbitMQ -->
+                            <rect x="360" y="155" width="90" height="45" rx="6" fill="rgba(255,153,0,0.1)" stroke="#ff9900" stroke-width="1"/>
+                            <text x="405" y="177" text-anchor="middle" fill="#ff9900" font-size="8" font-weight="600">RabbitMQ</text>
+                            <text x="405" y="191" text-anchor="middle" fill="#8ba4bc" font-size="7">:5672 (Cola)</text>
+                            <!-- Worker -->
+                            <rect x="360" y="220" width="90" height="40" rx="6" fill="rgba(32,201,151,0.1)" stroke="#20c997" stroke-width="1"/>
+                            <text x="405" y="244" text-anchor="middle" fill="#20c997" font-size="8" font-weight="600">Worker</text>
+                            <!-- Connections -->
+                            <line x1="155" y1="140" x2="195" y2="102" stroke="#20c997" stroke-width="1"/>
+                            <line x1="155" y1="150" x2="195" y2="167" stroke="#20c997" stroke-width="1"/>
+                            <line x1="305" y1="95" x2="355" y2="90" stroke="#6c63ff" stroke-width="1" stroke-dasharray="3,2"/>
+                            <line x1="305" y1="100" x2="495" y2="90" stroke="#007bff" stroke-width="1" stroke-dasharray="3,2"/>
+                            <line x1="305" y1="170" x2="355" y2="175" stroke="#ff9900" stroke-width="1" stroke-dasharray="3,2"/>
+                            <line x1="405" y1="200" x2="405" y2="218" stroke="#20c997" stroke-width="1"/>
+                            <line x1="550" y1="115" x2="550" y2="132" stroke="#007bff" stroke-width="1" stroke-dasharray="3,2"/>
+                        </svg>
+                    </div>
+                    <p class="diagram-caption">Todos los servicios corren en contenedores Docker conectados por una red interna</p>
+                </div>
+
+                <h3>Estructura del Proyecto</h3>
+                <div class="code-block">
+<span class="comment"># Estructura de carpetas</span>
+system-design-docker/
+├── docker-compose.yml        <span class="comment"># Orquestación de todos los servicios</span>
+├── nginx/
+│   └── nginx.conf            <span class="comment"># Configuración del balanceador</span>
+├── app/
+│   ├── Dockerfile            <span class="comment"># Imagen de la aplicación</span>
+│   ├── package.json
+│   ├── server.js             <span class="comment"># Servidor Express</span>
+│   └── worker.js             <span class="comment"># Consumer de la cola</span>
+├── db/
+│   └── init.sql              <span class="comment"># Schema inicial</span>
+└── .env                      <span class="comment"># Variables de entorno</span>
+</div>
+
+                <h3>docker-compose.yml — Orquestación Completa</h3>
+                <div class="code-block">
+<span class="comment"># docker-compose.yml</span>
+version: <span class="string">"3.9"</span>
+
+services:
+  <span class="comment"># === BALANCEADOR DE CARGA ===</span>
+  nginx:
+    image: nginx:alpine
+    ports:
+      - <span class="string">"80:80"</span>
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app1
+      - app2
+    networks:
+      - app-network
+
+  <span class="comment"># === SERVIDORES DE APLICACIÓN (Stateless) ===</span>
+  app1:
+    build: ./app
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - DB_WRITE_HOST=postgres-master
+      - DB_READ_HOST=postgres-replica
+      - DB_NAME=appdb
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - redis
+      - postgres-master
+      - rabbitmq
+    networks:
+      - app-network
+
+  app2:
+    build: ./app
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - DB_WRITE_HOST=postgres-master
+      - DB_READ_HOST=postgres-replica
+      - DB_NAME=appdb
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - redis
+      - postgres-master
+      - rabbitmq
+    networks:
+      - app-network
+</div>
+
+                <div class="code-block">
+  <span class="comment"># === CACHÉ (Redis) ===</span>
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - <span class="string">"6379:6379"</span>
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
+  <span class="comment"># === BASE DE DATOS MASTER (Escrituras) ===</span>
+  postgres-master:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secretpass}
+    ports:
+      - <span class="string">"5432:5432"</span>
+    volumes:
+      - pg-master-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: |
+      postgres
+        -c wal_level=replica
+        -c max_wal_senders=3
+        -c max_replication_slots=3
+    networks:
+      - app-network
+
+  <span class="comment"># === BASE DE DATOS RÉPLICA (Lecturas) ===</span>
+  postgres-replica:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secretpass}
+      PGUSER: admin
+    ports:
+      - <span class="string">"5433:5432"</span>
+    depends_on:
+      - postgres-master
+    volumes:
+      - pg-replica-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  <span class="comment"># === COLA DE MENSAJES (RabbitMQ) ===</span>
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - <span class="string">"5672:5672"</span>
+      - <span class="string">"15672:15672"</span>   <span class="comment"># Panel de administración</span>
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:-rabbitpass}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - app-network
+
+  <span class="comment"># === WORKER (Consumer de la cola) ===</span>
+  worker:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    command: node worker.js
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DB_WRITE_HOST=postgres-master
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - rabbitmq
+      - postgres-master
+    networks:
+      - app-network
+
+volumes:
+  redis-data:
+  pg-master-data:
+  pg-replica-data:
+  rabbitmq-data:
+
+networks:
+  app-network:
+    driver: bridge
+</div>
+
+                <h3>nginx.conf — Balanceador de Carga</h3>
+                <div class="code-block">
+<span class="comment"># nginx/nginx.conf</span>
+events {
+    worker_connections 1024;
+}
+
+http {
+    <span class="comment"># Upstream: grupo de servidores de aplicación</span>
+    upstream app_servers {
+        least_conn;  <span class="comment"># Enviar al servidor con menos conexiones</span>
+        server app1:3000;
+        server app2:3000;
+    }
+
+    server {
+        listen 80;
+
+        <span class="comment"># Health check endpoint</span>
+        location /health {
+            access_log off;
+            return 200 <span class="string">"OK"</span>;
+        }
+
+        <span class="comment"># Proxy a los servidores de aplicación</span>
+        location / {
+            proxy_pass http://app_servers;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 30s;
+        }
+
+        <span class="comment"># Assets estáticos servidos directamente</span>
+        location /static/ {
+            alias /usr/share/nginx/html/static/;
+            expires 7d;
+            add_header Cache-Control <span class="string">"public, immutable"</span>;
+        }
+    }
+}
+</div>
+
+                <h3>Dockerfile — Aplicación Node.js</h3>
+                <div class="code-block">
+<span class="comment"># app/Dockerfile</span>
+FROM node:20-alpine
+
+WORKDIR /app
+
+<span class="comment"># Instalar dependencias primero (cache de capas Docker)</span>
+COPY package*.json ./
+RUN npm ci --only=production
+
+<span class="comment"># Copiar código fuente</span>
+COPY . .
+
+EXPOSE 3000
+
+<span class="comment"># Health check integrado</span>
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD wget --quiet --tries=1 --spider http://localhost:3000/health || exit 1
+
+CMD [<span class="string">"node"</span>, <span class="string">"server.js"</span>]
+</div>
+
+                <h3>server.js — Aplicación con Caché y Replicación</h3>
+                <div class="code-block">
+<span class="comment">// app/server.js</span>
+<span class="keyword">const</span> express = require(<span class="string">'express'</span>);
+<span class="keyword">const</span> Redis = require(<span class="string">'ioredis'</span>);
+<span class="keyword">const</span> { Pool } = require(<span class="string">'pg'</span>);
+<span class="keyword">const</span> amqp = require(<span class="string">'amqplib'</span>);
+
+<span class="keyword">const</span> app = express();
+app.use(express.json());
+
+<span class="comment">// Conexión a Redis (Caché + Sesiones)</span>
+<span class="keyword">const</span> redis = new Redis(process.env.REDIS_URL);
+
+<span class="comment">// Pool de conexiones — Master para escrituras</span>
+<span class="keyword">const</span> writePool = new Pool({
+  host: process.env.DB_WRITE_HOST,
+  database: process.env.DB_NAME,
+  user: <span class="string">'admin'</span>, password: process.env.DB_PASSWORD,
+  max: 20
+});
+
+<span class="comment">// Pool de conexiones — Réplica para lecturas</span>
+<span class="keyword">const</span> readPool = new Pool({
+  host: process.env.DB_READ_HOST,
+  database: process.env.DB_NAME,
+  user: <span class="string">'admin'</span>, password: process.env.DB_PASSWORD,
+  max: 20
+});
+
+<span class="comment">// GET /users/:id — Read-through cache</span>
+app.get(<span class="string">'/users/:id'</span>, async (req, res) =&gt; {
+  <span class="keyword">const</span> { id } = req.params;
+  <span class="comment">// 1. Verificar caché</span>
+  <span class="keyword">const</span> cached = await redis.get(`user:${id}`);
+  <span class="keyword">if</span> (cached) <span class="keyword">return</span> res.json(JSON.parse(cached));
+
+  <span class="comment">// 2. Cache miss → leer de réplica</span>
+  <span class="keyword">const</span> { rows } = await readPool.query(
+    <span class="string">'SELECT * FROM users WHERE id = $1'</span>, [id]
+  );
+  <span class="keyword">if</span> (rows.length === 0) <span class="keyword">return</span> res.status(404).json({ error: <span class="string">'No encontrado'</span> });
+
+  <span class="comment">// 3. Guardar en caché (TTL: 5 minutos)</span>
+  await redis.setex(`user:${id}`, 300, JSON.stringify(rows[0]));
+  res.json(rows[0]);
+});
+
+<span class="comment">// POST /users — Escribir en master + invalidar caché</span>
+app.post(<span class="string">'/users'</span>, async (req, res) =&gt; {
+  <span class="keyword">const</span> { name, email } = req.body;
+  <span class="keyword">const</span> { rows } = await writePool.query(
+    <span class="string">'INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *'</span>,
+    [name, email]
+  );
+  <span class="comment">// Publicar tarea asíncrona en la cola</span>
+  <span class="keyword">const</span> channel = await getChannel();
+  channel.sendToQueue(<span class="string">'tasks'</span>, Buffer.from(JSON.stringify({
+    type: <span class="string">'welcome_email'</span>, userId: rows[0].id
+  })));
+  res.status(201).json(rows[0]);
+});
+
+app.get(<span class="string">'/health'</span>, (req, res) =&gt; res.json({ status: <span class="string">'ok'</span> }));
+app.listen(3000, () =&gt; console.log(<span class="string">'Servidor en puerto 3000'</span>));
+</div>
+
+                <h3>worker.js — Consumer de la Cola</h3>
+                <div class="code-block">
+<span class="comment">// app/worker.js — Procesa tareas de la cola</span>
+<span class="keyword">const</span> amqp = require(<span class="string">'amqplib'</span>);
+
+async <span class="keyword">function</span> startWorker() {
+  <span class="keyword">const</span> conn = await amqp.connect(process.env.RABBITMQ_URL);
+  <span class="keyword">const</span> channel = await conn.createChannel();
+
+  await channel.assertQueue(<span class="string">'tasks'</span>, { durable: true });
+  channel.prefetch(5); <span class="comment">// Procesar 5 mensajes a la vez</span>
+
+  console.log(<span class="string">'Worker esperando tareas...'</span>);
+
+  channel.consume(<span class="string">'tasks'</span>, async (msg) =&gt; {
+    <span class="keyword">const</span> task = JSON.parse(msg.content.toString());
+    console.log(`Procesando: ${task.type} para usuario ${task.userId}`);
+
+    try {
+      <span class="keyword">switch</span> (task.type) {
+        <span class="keyword">case</span> <span class="string">'welcome_email'</span>:
+          await sendWelcomeEmail(task.userId);
+          <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'process_image'</span>:
+          await processImage(task.imageUrl);
+          <span class="keyword">break</span>;
+      }
+      channel.ack(msg); <span class="comment">// Confirmar procesamiento exitoso</span>
+    } <span class="keyword">catch</span> (error) {
+      console.error(<span class="string">'Error:'</span>, error);
+      channel.nack(msg, false, true); <span class="comment">// Reintentar</span>
+    }
+  });
+}
+
+startWorker();
+</div>
+
+                <h3>Comandos para Ejecutar</h3>
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-step-number">1</div>
+                        <div class="flow-step-content">
+                            <p><strong>Levantar todo:</strong> <code>docker compose up -d --build</code> — Construye imágenes y levanta todos los servicios en segundo plano.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">2</div>
+                        <div class="flow-step-content">
+                            <p><strong>Ver logs:</strong> <code>docker compose logs -f app1 app2 worker</code> — Monitorear la aplicación y el worker en tiempo real.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">3</div>
+                        <div class="flow-step-content">
+                            <p><strong>Probar balanceo:</strong> <code>for i in $(seq 1 10); do curl http://localhost/health; done</code> — Verás respuestas alternando entre app1 y app2.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">4</div>
+                        <div class="flow-step-content">
+                            <p><strong>Escalar:</strong> <code>docker compose up -d --scale app1=3</code> — Agregar más instancias de la app dinámicamente.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">5</div>
+                        <div class="flow-step-content">
+                            <p><strong>Panel RabbitMQ:</strong> Abrir <code>http://localhost:15672</code> (admin/rabbitpass) para ver la cola de mensajes visualmente.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">6</div>
+                        <div class="flow-step-content">
+                            <p><strong>Detener todo:</strong> <code>docker compose down -v</code> — Detiene contenedores y elimina volúmenes.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h4>💡 ¿Qué demuestra este ejemplo?</h4>
+                    <p>
+                        Este docker-compose replica localmente todos los conceptos del capítulo:<br>
+                        • <strong>Balanceador de carga:</strong> Nginx con upstream round-robin<br>
+                        • <strong>Servidores stateless:</strong> 2+ instancias de la app sin estado local<br>
+                        • <strong>Caché read-through:</strong> Redis con TTL de 5 minutos<br>
+                        • <strong>Replicación de BD:</strong> PostgreSQL master (escrituras) + réplica (lecturas)<br>
+                        • <strong>Cola de mensajes:</strong> RabbitMQ con worker consumer independiente<br>
+                        • <strong>Escalamiento horizontal:</strong> <code>docker compose --scale</code> para agregar instancias
+                    </p>
+                </div>
+            </div>
+
+
             <!-- Summary Section -->
             <div class="summary-section">
                 <h2>🏆 Resumen — Millones de Usuarios y Más Allá</h2>
@@ -914,6 +1705,8 @@
         <a href="#message-queue" class="toc-dot" title="Cola de Mensajes"></a>
         <a href="#scaling" class="toc-dot" title="Sharding"></a>
         <a href="#cloud-practices" class="toc-dot" title="Prácticas Cloud"></a>
+        <a href="#aws-terraform" class="toc-dot" title="AWS + Terraform"></a>
+        <a href="#docker-local" class="toc-dot" title="Docker Local"></a>
     </div>
 
     <script src="script.js"></script>

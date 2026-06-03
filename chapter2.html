@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diseño de Sistemas - Estimaciones Rápidas de Capacidad</title>
+    <meta name="description" content="Estimaciones rápidas de capacidad: potencias de 2, números de latencia, disponibilidad y cálculos de QPS y almacenamiento.">
+    <meta name="author" content="José Ángel Sánchez Pérez">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Diseño de Sistemas - Estimaciones Rápidas">
+    <meta property="og:description" content="Domina las estimaciones back-of-the-envelope para entrevistas de diseño de sistemas.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <!-- Navegación -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="nav-back">
+                <i class="fas fa-arrow-left"></i> Todos los Ejemplos
+            </a>
+            <a href="chapter2.html" class="nav-logo">
+                <span class="logo-icon">🧮</span> Ejemplo 2
+            </a>
+            <ul class="nav-menu">
+                <li><a href="#power-of-two" class="nav-link">Potencias de 2</a></li>
+                <li><a href="#latency" class="nav-link">Latencia</a></li>
+                <li><a href="#availability" class="nav-link">Disponibilidad</a></li>
+                <li><a href="#example-twitter" class="nav-link">Ejemplo Twitter</a></li>
+                <li><a href="#tips" class="nav-link">Consejos</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <i class="fas fa-calculator"></i> Ejemplo 2 — Diseño de Sistemas
+            </div>
+            <h1 class="hero-title">
+                Estimaciones <span class="gradient-text">Rápidas</span><br>
+                de <span class="gradient-text">Capacidad</span>
+            </h1>
+            <p class="hero-subtitle">
+                Estimaciones back-of-the-envelope: combinación de experimentos mentales y números de rendimiento 
+                comunes para determinar qué diseños cumplen tus requisitos.
+            </p>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-number">3</div>
+                    <div class="hero-stat-label">Conceptos Base</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-number">1</div>
+                    <div class="hero-stat-label">Ejemplo Práctico</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-number">∞</div>
+                    <div class="hero-stat-label">Aplicaciones</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contenido -->
+    <section class="chapter-section">
+        <div class="chapter-container">
+            <div class="chapter-header">
+                <div class="chapter-number">02</div>
+                <h2 class="chapter-title">Estimaciones <span class="highlight">Back-of-the-Envelope</span></h2>
+            </div>
+
+            <!-- Potencias de 2 -->
+            <div class="content-block" id="power-of-two">
+                <h2><span class="icon cyan"><i class="fas fa-superscript"></i></span> Potencias de Dos</h2>
+                <p>
+                    Aunque el volumen de datos puede ser enorme en sistemas distribuidos, todo se reduce a lo básico. 
+                    Para obtener cálculos correctos, es fundamental conocer las unidades de volumen de datos usando potencias de 2. 
+                    Un byte es una secuencia de 8 bits. Un carácter ASCII usa un byte de memoria.
+                </p>
+
+                <div class="diagram-container">
+                    <span class="diagram-label">Tabla 2-1 — Unidades de Volumen de Datos</span>
+                    <div class="svg-diagram">
+                        <svg viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Header -->
+                            <rect x="40" y="15" width="180" height="32" rx="6" fill="rgba(77,168,218,0.15)" stroke="#4da8da" stroke-width="1"/>
+                            <text x="130" y="36" text-anchor="middle" fill="#4da8da" font-size="10" font-weight="700">Potencia</text>
+                            <rect x="235" y="15" width="200" height="32" rx="6" fill="rgba(0,123,255,0.15)" stroke="#007bff" stroke-width="1"/>
+                            <text x="335" y="36" text-anchor="middle" fill="#007bff" font-size="10" font-weight="700">Valor Aproximado</text>
+                            <rect x="450" y="15" width="210" height="32" rx="6" fill="rgba(108,99,255,0.15)" stroke="#6c63ff" stroke-width="1"/>
+                            <text x="555" y="36" text-anchor="middle" fill="#6c63ff" font-size="10" font-weight="700">Nombre</text>
+                            <!-- Rows -->
+                            <text x="130" y="75" text-anchor="middle" fill="#f0f4f8" font-size="9">2¹⁰</text>
+                            <text x="335" y="75" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Mil (1,024)</text>
+                            <text x="555" y="75" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Kilobyte (KB)</text>
+                            <line x1="40" y1="87" x2="660" y2="87" stroke="#1e3a5f" stroke-width="0.5"/>
+                            <text x="130" y="107" text-anchor="middle" fill="#f0f4f8" font-size="9">2²⁰</text>
+                            <text x="335" y="107" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Millón (1,048,576)</text>
+                            <text x="555" y="107" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Megabyte (MB)</text>
+                            <line x1="40" y1="119" x2="660" y2="119" stroke="#1e3a5f" stroke-width="0.5"/>
+                            <text x="130" y="139" text-anchor="middle" fill="#f0f4f8" font-size="9">2³⁰</text>
+                            <text x="335" y="139" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Mil Millones (~1 Billón)</text>
+                            <text x="555" y="139" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Gigabyte (GB)</text>
+                            <line x1="40" y1="151" x2="660" y2="151" stroke="#1e3a5f" stroke-width="0.5"/>
+                            <text x="130" y="171" text-anchor="middle" fill="#f0f4f8" font-size="9">2⁴⁰</text>
+                            <text x="335" y="171" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Billón (1,099,511,627,776)</text>
+                            <text x="555" y="171" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Terabyte (TB)</text>
+                            <line x1="40" y1="183" x2="660" y2="183" stroke="#1e3a5f" stroke-width="0.5"/>
+                            <text x="130" y="203" text-anchor="middle" fill="#f0f4f8" font-size="9">2⁵⁰</text>
+                            <text x="335" y="203" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Cuatrillón</text>
+                            <text x="555" y="203" text-anchor="middle" fill="#8ba4bc" font-size="9">1 Petabyte (PB)</text>
+                            <line x1="40" y1="215" x2="660" y2="215" stroke="#1e3a5f" stroke-width="0.5"/>
+                        </svg>
+                    </div>
+                    <p class="diagram-caption">Unidades de datos basadas en potencias de 2 — fundamentales para estimaciones</p>
+                </div>
+            </div>
+
+            <!-- Números de Latencia -->
+            <div class="content-block" id="latency">
+                <h2><span class="icon orange"><i class="fas fa-stopwatch"></i></span> Números de Latencia que Todo Programador Debe Conocer</h2>
+                <p>
+                    El Dr. Dean de Google reveló la duración de operaciones típicas de computadora. Aunque algunos números 
+                    están desactualizados, nos dan una idea clara de la rapidez y lentitud de diferentes operaciones.
+                </p>
+
+                <div class="info-card">
+                    <h4>📐 Unidades de Tiempo</h4>
+                    <p>
+                        • <strong>ns</strong> = nanosegundo = 10⁻⁹ segundos<br>
+                        • <strong>μs</strong> = microsegundo = 10⁻⁶ segundos = 1,000 ns<br>
+                        • <strong>ms</strong> = milisegundo = 10⁻³ segundos = 1,000 μs = 1,000,000 ns
+                    </p>
+                </div>
+
+                <div class="diagram-container">
+                    <span class="diagram-label">Números de Latencia (2020)</span>
+                    <div class="svg-diagram">
+                        <svg viewBox="0 0 750 480" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Header -->
+                            <rect x="30" y="10" width="350" height="30" rx="6" fill="rgba(77,168,218,0.15)" stroke="#4da8da" stroke-width="1"/>
+                            <text x="205" y="30" text-anchor="middle" fill="#4da8da" font-size="9" font-weight="700">Operación</text>
+                            <rect x="395" y="10" width="120" height="30" rx="6" fill="rgba(0,123,255,0.15)" stroke="#007bff" stroke-width="1"/>
+                            <text x="455" y="30" text-anchor="middle" fill="#007bff" font-size="9" font-weight="700">Tiempo</text>
+                            <rect x="530" y="10" width="190" height="30" rx="6" fill="rgba(32,201,151,0.15)" stroke="#20c997" stroke-width="1"/>
+                            <text x="625" y="30" text-anchor="middle" fill="#20c997" font-size="9" font-weight="700">Escala Visual</text>
+                            <!-- Rows -->
+                            <text x="205" y="65" text-anchor="middle" fill="#f0f4f8" font-size="8">Referencia caché L1</text>
+                            <text x="455" y="65" text-anchor="middle" fill="#20c997" font-size="8" font-weight="600">0.5 ns</text>
+                            <rect x="535" y="57" width="3" height="10" rx="1" fill="#20c997"/>
+                            <line x1="30" y1="75" x2="720" y2="75" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="95" text-anchor="middle" fill="#f0f4f8" font-size="8">Referencia caché L2</text>
+                            <text x="455" y="95" text-anchor="middle" fill="#20c997" font-size="8" font-weight="600">7 ns</text>
+                            <rect x="535" y="87" width="8" height="10" rx="1" fill="#20c997"/>
+                            <line x1="30" y1="105" x2="720" y2="105" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="125" text-anchor="middle" fill="#f0f4f8" font-size="8">Mutex lock/unlock</text>
+                            <text x="455" y="125" text-anchor="middle" fill="#20c997" font-size="8" font-weight="600">100 ns</text>
+                            <rect x="535" y="117" width="14" height="10" rx="1" fill="#20c997"/>
+                            <line x1="30" y1="135" x2="720" y2="135" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="155" text-anchor="middle" fill="#f0f4f8" font-size="8">Referencia memoria principal</text>
+                            <text x="455" y="155" text-anchor="middle" fill="#4da8da" font-size="8" font-weight="600">100 ns</text>
+                            <rect x="535" y="147" width="14" height="10" rx="1" fill="#4da8da"/>
+                            <line x1="30" y1="165" x2="720" y2="165" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="185" text-anchor="middle" fill="#f0f4f8" font-size="8">Comprimir 1KB con Zippy</text>
+                            <text x="455" y="185" text-anchor="middle" fill="#4da8da" font-size="8" font-weight="600">10 μs</text>
+                            <rect x="535" y="177" width="30" height="10" rx="1" fill="#4da8da"/>
+                            <line x1="30" y1="195" x2="720" y2="195" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="215" text-anchor="middle" fill="#f0f4f8" font-size="8">Enviar 2KB por red 1 Gbps</text>
+                            <text x="455" y="215" text-anchor="middle" fill="#4da8da" font-size="8" font-weight="600">20 μs</text>
+                            <rect x="535" y="207" width="38" height="10" rx="1" fill="#4da8da"/>
+                            <line x1="30" y1="225" x2="720" y2="225" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="245" text-anchor="middle" fill="#f0f4f8" font-size="8">Lectura aleatoria SSD</text>
+                            <text x="455" y="245" text-anchor="middle" fill="#007bff" font-size="8" font-weight="600">100 μs</text>
+                            <rect x="535" y="237" width="55" height="10" rx="1" fill="#007bff"/>
+                            <line x1="30" y1="255" x2="720" y2="255" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="275" text-anchor="middle" fill="#f0f4f8" font-size="8">Lectura secuencial 1MB de memoria</text>
+                            <text x="455" y="275" text-anchor="middle" fill="#007bff" font-size="8" font-weight="600">250 μs</text>
+                            <rect x="535" y="267" width="70" height="10" rx="1" fill="#007bff"/>
+                            <line x1="30" y1="285" x2="720" y2="285" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="305" text-anchor="middle" fill="#f0f4f8" font-size="8">Round trip en el mismo data center</text>
+                            <text x="455" y="305" text-anchor="middle" fill="#6c63ff" font-size="8" font-weight="600">500 μs</text>
+                            <rect x="535" y="297" width="85" height="10" rx="1" fill="#6c63ff"/>
+                            <line x1="30" y1="315" x2="720" y2="315" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="335" text-anchor="middle" fill="#f0f4f8" font-size="8">Lectura secuencial 1MB de SSD</text>
+                            <text x="455" y="335" text-anchor="middle" fill="#6c63ff" font-size="8" font-weight="600">1 ms</text>
+                            <rect x="535" y="327" width="100" height="10" rx="1" fill="#6c63ff"/>
+                            <line x1="30" y1="345" x2="720" y2="345" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="365" text-anchor="middle" fill="#f0f4f8" font-size="8">Búsqueda en disco (HDD seek)</text>
+                            <text x="455" y="365" text-anchor="middle" fill="#ff6b6b" font-size="8" font-weight="600">10 ms</text>
+                            <rect x="535" y="357" width="130" height="10" rx="1" fill="#ff6b6b"/>
+                            <line x1="30" y1="375" x2="720" y2="375" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="395" text-anchor="middle" fill="#f0f4f8" font-size="8">Lectura secuencial 1MB de disco</text>
+                            <text x="455" y="395" text-anchor="middle" fill="#ff6b6b" font-size="8" font-weight="600">20 ms</text>
+                            <rect x="535" y="387" width="145" height="10" rx="1" fill="#ff6b6b"/>
+                            <line x1="30" y1="405" x2="720" y2="405" stroke="#1e3a5f" stroke-width="0.3"/>
+
+                            <text x="205" y="425" text-anchor="middle" fill="#f0f4f8" font-size="8">Enviar paquete CA → Holanda → CA</text>
+                            <text x="455" y="425" text-anchor="middle" fill="#ff6b6b" font-size="8" font-weight="600">150 ms</text>
+                            <rect x="535" y="417" width="180" height="10" rx="1" fill="#ff6b6b"/>
+                        </svg>
+                    </div>
+                    <p class="diagram-caption">Visualización de latencias — de nanosegundos a milisegundos</p>
+                </div>
+
+                <h3>Conclusiones Clave</h3>
+                <div class="advantages-list">
+                    <div class="advantage-item">
+                        <span class="check">⚡</span>
+                        <p><strong>La memoria es rápida</strong> pero el disco es lento</p>
+                    </div>
+                    <div class="advantage-item">
+                        <span class="check">🚫</span>
+                        <p><strong>Evitar búsquedas en disco</strong> (disk seeks) siempre que sea posible</p>
+                    </div>
+                    <div class="advantage-item">
+                        <span class="check">🗜️</span>
+                        <p><strong>Algoritmos de compresión simples</strong> son rápidos — comprimir antes de enviar por red</p>
+                    </div>
+                    <div class="advantage-item">
+                        <span class="check">🌍</span>
+                        <p><strong>Los data centers</strong> están en diferentes regiones — enviar datos entre ellos toma tiempo</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disponibilidad -->
+            <div class="content-block" id="availability">
+                <h2><span class="icon purple"><i class="fas fa-shield-alt"></i></span> Números de Disponibilidad</h2>
+                <p>
+                    La alta disponibilidad es la capacidad de un sistema de estar continuamente operativo durante un período 
+                    deseado. Se mide como porcentaje — 100% significa 0 tiempo de inactividad. La mayoría de servicios 
+                    están entre 99% y 100%.
+                </p>
+
+                <div class="info-card">
+                    <h4>📋 SLA (Service Level Agreement)</h4>
+                    <p>Es un acuerdo entre el proveedor de servicio y el cliente que define formalmente el nivel de uptime. 
+                    Proveedores cloud como Amazon, Google y Microsoft establecen sus SLAs en 99.9% o superior. 
+                    El uptime se mide tradicionalmente en "nueves" — más nueves = mejor.</p>
+                </div>
+
+                <div class="diagram-container">
+                    <span class="diagram-label">Tabla 2-3 — Disponibilidad vs Tiempo de Inactividad</span>
+                    <div class="svg-diagram">
+                        <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Header -->
+                            <rect x="40" y="15" width="180" height="32" rx="6" fill="rgba(77,168,218,0.15)" stroke="#4da8da" stroke-width="1"/>
+                            <text x="130" y="36" text-anchor="middle" fill="#4da8da" font-size="10" font-weight="700">Disponibilidad %</text>
+                            <rect x="235" y="15" width="200" height="32" rx="6" fill="rgba(255,107,53,0.15)" stroke="#ff6b6b" stroke-width="1"/>
+                            <text x="335" y="36" text-anchor="middle" fill="#ff6b6b" font-size="10" font-weight="700">Inactividad/Año</text>
+                            <rect x="450" y="15" width="210" height="32" rx="6" fill="rgba(108,99,255,0.15)" stroke="#6c63ff" stroke-width="1"/>
+                            <text x="555" y="36" text-anchor="middle" fill="#6c63ff" font-size="10" font-weight="700">Inactividad/Día</text>
+                            <!-- Rows -->
+                            <text x="130" y="75" text-anchor="middle" fill="#ff6b6b" font-size="9">99% (2 nueves)</text>
+                            <text x="335" y="75" text-anchor="middle" fill="#8ba4bc" font-size="9">3.65 días</text>
+                            <text x="555" y="75" text-anchor="middle" fill="#8ba4bc" font-size="9">14.40 minutos</text>
+                            <line x1="40" y1="87" x2="660" y2="87" stroke="#1e3a5f" stroke-width="0.5"/>
+
+                            <text x="130" y="107" text-anchor="middle" fill="#ff9900" font-size="9">99.9% (3 nueves)</text>
+                            <text x="335" y="107" text-anchor="middle" fill="#8ba4bc" font-size="9">8.77 horas</text>
+                            <text x="555" y="107" text-anchor="middle" fill="#8ba4bc" font-size="9">1.44 minutos</text>
+                            <line x1="40" y1="119" x2="660" y2="119" stroke="#1e3a5f" stroke-width="0.5"/>
+
+                            <text x="130" y="139" text-anchor="middle" fill="#ffc107" font-size="9">99.99% (4 nueves)</text>
+                            <text x="335" y="139" text-anchor="middle" fill="#8ba4bc" font-size="9">52.60 minutos</text>
+                            <text x="555" y="139" text-anchor="middle" fill="#8ba4bc" font-size="9">8.64 segundos</text>
+                            <line x1="40" y1="151" x2="660" y2="151" stroke="#1e3a5f" stroke-width="0.5"/>
+
+                            <text x="130" y="171" text-anchor="middle" fill="#20c997" font-size="9">99.999% (5 nueves)</text>
+                            <text x="335" y="171" text-anchor="middle" fill="#8ba4bc" font-size="9">5.26 minutos</text>
+                            <text x="555" y="171" text-anchor="middle" fill="#8ba4bc" font-size="9">864 ms</text>
+                            <line x1="40" y1="183" x2="660" y2="183" stroke="#1e3a5f" stroke-width="0.5"/>
+
+                            <text x="130" y="203" text-anchor="middle" fill="#20c997" font-size="9" font-weight="600">99.9999% (6 nueves)</text>
+                            <text x="335" y="203" text-anchor="middle" fill="#8ba4bc" font-size="9">31.56 segundos</text>
+                            <text x="555" y="203" text-anchor="middle" fill="#8ba4bc" font-size="9">86.4 ms</text>
+                        </svg>
+                    </div>
+                    <p class="diagram-caption">Más "nueves" = menos tiempo de inactividad permitido</p>
+                </div>
+
+                <div class="scaling-grid">
+                    <div class="scaling-card">
+                        <div class="scaling-icon">☁️</div>
+                        <h4>AWS</h4>
+                        <div class="subtitle">SLA: 99.99%</div>
+                        <p>EC2, S3, RDS Multi-AZ ofrecen SLAs de 99.95% a 99.999%</p>
+                    </div>
+                    <div class="scaling-card">
+                        <div class="scaling-icon">☁️</div>
+                        <h4>Google Cloud</h4>
+                        <div class="subtitle">SLA: 99.95%</div>
+                        <p>Compute Engine, Cloud Spanner con SLA de hasta 99.999%</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ejemplo Twitter -->
+            <div class="content-block" id="example-twitter">
+                <h2><span class="icon cyan"><i class="fas fa-bird"></i></span> Ejemplo: Estimar QPS y Almacenamiento de Twitter</h2>
+                <p>
+                    Veamos un ejemplo práctico de estimación back-of-the-envelope. Los números son solo para el ejercicio, 
+                    no son datos reales de Twitter.
+                </p>
+
+                <div class="info-card">
+                    <h4>📝 Supuestos</h4>
+                    <p>
+                        • 300 millones de usuarios activos mensuales<br>
+                        • 50% de usuarios usan Twitter diariamente<br>
+                        • Los usuarios publican 2 tweets por día en promedio<br>
+                        • 10% de los tweets contienen media (imágenes/video)<br>
+                        • Los datos se almacenan por 5 años
+                    </p>
+                </div>
+
+                <h3>Estimación de QPS (Queries Per Second)</h3>
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-step-number">1</div>
+                        <div class="flow-step-content">
+                            <p><strong>Usuarios Activos Diarios (DAU):</strong> 300 millones × 50% = <strong>150 millones</strong></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">2</div>
+                        <div class="flow-step-content">
+                            <p><strong>Tweets QPS:</strong> 150 millones × 2 tweets ÷ 24 horas ÷ 3,600 segundos = <strong>~3,500 QPS</strong></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">3</div>
+                        <div class="flow-step-content">
+                            <p><strong>QPS Pico:</strong> 2 × QPS = <strong>~7,000 QPS</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Estimación de Almacenamiento de Media</h3>
+                <div class="info-card orange">
+                    <h4>💾 Tamaño Promedio de un Tweet</h4>
+                    <p>
+                        • tweet_id: <strong>64 bytes</strong><br>
+                        • texto: <strong>140 bytes</strong><br>
+                        • media: <strong>1 MB</strong> (cuando aplica)
+                    </p>
+                </div>
+
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-step-number">1</div>
+                        <div class="flow-step-content">
+                            <p><strong>Almacenamiento diario de media:</strong> 150M × 2 × 10% × 1 MB = <strong>30 TB/día</strong></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">2</div>
+                        <div class="flow-step-content">
+                            <p><strong>Almacenamiento a 5 años:</strong> 30 TB × 365 × 5 = <strong>~55 PB</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-container">
+                    <span class="diagram-label">Resumen de Estimaciones — Twitter</span>
+                    <div class="svg-diagram">
+                        <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+                            <!-- QPS Box -->
+                            <rect x="40" y="30" width="180" height="140" rx="12" fill="rgba(77,168,218,0.1)" stroke="#4da8da" stroke-width="1.5"/>
+                            <text x="130" y="60" text-anchor="middle" fill="#4da8da" font-size="10" font-weight="700">QPS</text>
+                            <text x="130" y="95" text-anchor="middle" fill="#f0f4f8" font-size="22" font-weight="900">3,500</text>
+                            <text x="130" y="120" text-anchor="middle" fill="#8ba4bc" font-size="9">queries/segundo</text>
+                            <text x="130" y="150" text-anchor="middle" fill="#6c63ff" font-size="9">Pico: 7,000</text>
+                            <!-- Storage Daily -->
+                            <rect x="260" y="30" width="180" height="140" rx="12" fill="rgba(0,123,255,0.1)" stroke="#007bff" stroke-width="1.5"/>
+                            <text x="350" y="60" text-anchor="middle" fill="#007bff" font-size="10" font-weight="700">Almacenamiento/Día</text>
+                            <text x="350" y="95" text-anchor="middle" fill="#f0f4f8" font-size="22" font-weight="900">30 TB</text>
+                            <text x="350" y="120" text-anchor="middle" fill="#8ba4bc" font-size="9">solo media</text>
+                            <text x="350" y="150" text-anchor="middle" fill="#6c63ff" font-size="9">~1 PB/mes</text>
+                            <!-- Storage 5yr -->
+                            <rect x="480" y="30" width="180" height="140" rx="12" fill="rgba(108,99,255,0.1)" stroke="#6c63ff" stroke-width="1.5"/>
+                            <text x="570" y="60" text-anchor="middle" fill="#6c63ff" font-size="10" font-weight="700">Almacenamiento 5 Años</text>
+                            <text x="570" y="95" text-anchor="middle" fill="#f0f4f8" font-size="22" font-weight="900">~55 PB</text>
+                            <text x="570" y="120" text-anchor="middle" fill="#8ba4bc" font-size="9">petabytes totales</text>
+                            <text x="570" y="150" text-anchor="middle" fill="#20c997" font-size="9">S3 / Cloud Storage</text>
+                        </svg>
+                    </div>
+                    <p class="diagram-caption">Resultados de la estimación: QPS, almacenamiento diario y proyección a 5 años</p>
+                </div>
+            </div>
+
+            <!-- Consejos -->
+            <div class="content-block" id="tips">
+                <h2><span class="icon orange"><i class="fas fa-lightbulb"></i></span> Consejos para Estimaciones</h2>
+                <p>
+                    Las estimaciones back-of-the-envelope se tratan del proceso, no del resultado exacto. 
+                    Los entrevistadores evalúan tu capacidad de resolución de problemas.
+                </p>
+
+                <div class="considerations-grid">
+                    <div class="consideration-card">
+                        <h5>🔢 Redondear y Aproximar</h5>
+                        <p>No pierdas tiempo con matemáticas complicadas. ¿99,987 ÷ 9.1? Simplifica: 100,000 ÷ 10 = 10,000. La precisión exacta no se espera.</p>
+                    </div>
+                    <div class="consideration-card">
+                        <h5>📝 Escribir Supuestos</h5>
+                        <p>Anota tus supuestos para poder referenciarlos después. Esto muestra pensamiento estructurado al entrevistador.</p>
+                    </div>
+                    <div class="consideration-card">
+                        <h5>🏷️ Etiquetar Unidades</h5>
+                        <p>Cuando escribas "5", ¿es 5 KB o 5 MB? Siempre escribe las unidades: "5 MB" elimina ambigüedad.</p>
+                    </div>
+                    <div class="consideration-card">
+                        <h5>📊 Estimaciones Comunes</h5>
+                        <p>QPS, QPS pico, almacenamiento, caché, número de servidores. Practica estos cálculos — la práctica hace al maestro.</p>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="comment"># Fórmulas rápidas para estimaciones</span>
+
+<span class="comment"># QPS (Queries Per Second)</span>
+QPS = DAU × acciones_por_usuario ÷ 86,400
+QPS_pico = QPS × 2  <span class="comment">(o × 3 para servicios muy variables)</span>
+
+<span class="comment"># Almacenamiento</span>
+almacenamiento_diario = DAU × acciones × tamaño_promedio
+almacenamiento_anual = almacenamiento_diario × 365
+
+<span class="comment"># Ancho de banda</span>
+ancho_banda = QPS × tamaño_promedio_respuesta
+
+<span class="comment"># Caché (regla 80/20)</span>
+memoria_cache = solicitudes_diarias × 20% × tamaño_promedio
+
+<span class="comment"># Número de servidores</span>
+servidores = QPS_pico ÷ QPS_por_servidor
+</div>
+            </div>
+
+            <!-- Resumen -->
+            <div class="summary-section">
+                <h2>🏆 Resumen — Estimaciones Back-of-the-Envelope</h2>
+                <div class="summary-grid">
+                    <div class="summary-item"><span class="bullet"></span> Dominar potencias de 2 para unidades de datos</div>
+                    <div class="summary-item"><span class="bullet"></span> Memorizar números de latencia clave</div>
+                    <div class="summary-item"><span class="bullet"></span> Entender SLAs y "nueves" de disponibilidad</div>
+                    <div class="summary-item"><span class="bullet"></span> Redondear y aproximar — no buscar precisión exacta</div>
+                    <div class="summary-item"><span class="bullet"></span> Siempre escribir supuestos y etiquetar unidades</div>
+                    <div class="summary-item"><span class="bullet"></span> Practicar QPS, almacenamiento, caché y servidores</div>
+                    <div class="summary-item"><span class="bullet"></span> El proceso importa más que el resultado</div>
+                    <div class="summary-item"><span class="bullet"></span> Usar fórmulas simples y consistentes</div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Pie de página -->
+    <footer class="footer">
+        <p>Diseño de Sistemas — Basado en "System Design Interview" de Alex Xu</p>
+        <p>Creado por <a href="https://github.com/mtroangelsanchez">José Ángel Sánchez Pérez</a></p>
+    </footer>
+
+    <!-- Navegación lateral -->
+    <div class="toc">
+        <a href="#power-of-two" class="toc-dot active" title="Potencias de 2"></a>
+        <a href="#latency" class="toc-dot" title="Latencia"></a>
+        <a href="#availability" class="toc-dot" title="Disponibilidad"></a>
+        <a href="#example-twitter" class="toc-dot" title="Ejemplo Twitter"></a>
+        <a href="#tips" class="toc-dot" title="Consejos"></a>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

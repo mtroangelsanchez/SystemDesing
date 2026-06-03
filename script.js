@@ -102,4 +102,73 @@ document.addEventListener('DOMContentLoaded', () => {
     sections.forEach(section => {
         if (section.id) navObserver.observe(section);
     });
+
+    // ===== CODE BLOCKS: Add copy button and wrapper =====
+    document.querySelectorAll('.code-block').forEach(block => {
+        // Skip if already wrapped
+        if (block.parentElement.classList.contains('code-block-wrapper')) return;
+
+        // Create wrapper
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-block-wrapper';
+
+        // Detect language from content
+        const content = block.textContent;
+        let lang = 'código';
+        if (content.includes('terraform') || content.includes('resource "aws')) lang = 'terraform (hcl)';
+        else if (content.includes('docker-compose') || content.includes('services:')) lang = 'yaml';
+        else if (content.includes('const ') || content.includes('require(')) lang = 'javascript';
+        else if (content.includes('FROM ') || content.includes('WORKDIR')) lang = 'dockerfile';
+        else if (content.includes('upstream') || content.includes('proxy_pass')) lang = 'nginx.conf';
+        else if (content.includes('GET /') || content.includes('"id"')) lang = 'json';
+        else if (content.includes('provider "') || content.includes('variable "')) lang = 'terraform (hcl)';
+        else if (content.includes('#!/bin/bash') || content.includes('yum ')) lang = 'bash';
+
+        // Create header
+        const header = document.createElement('div');
+        header.className = 'code-block-header';
+        header.innerHTML = `
+            <span class="code-block-lang">${lang}</span>
+            <button class="code-copy-btn" title="Copiar código">
+                <i class="fas fa-copy"></i> Copiar
+            </button>
+        `;
+
+        // Insert wrapper
+        block.parentNode.insertBefore(wrapper, block);
+        wrapper.appendChild(header);
+        wrapper.appendChild(block);
+
+        // Copy button functionality
+        const copyBtn = header.querySelector('.code-copy-btn');
+        copyBtn.addEventListener('click', async () => {
+            // Get clean text content (without HTML tags)
+            const textToCopy = block.textContent;
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copiado';
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copiar';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copiado';
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copiar';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }
+        });
+    });
 });
